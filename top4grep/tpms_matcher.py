@@ -148,7 +148,11 @@ def fetch_dblp_publications(author_name):
         for hit in hits:
             info = hit.get("info", {})
             year = info.get("year")
+            # Handle case where year might be an array
+            if isinstance(year, list):
+                year = year[0] if year else None
             title = info.get("title")
+            print (f"Processing paper: {title} ({year})")
             if year and title:
                 all_papers.append((title, int(year)))
         
@@ -260,4 +264,4 @@ def match_reviewers(cfp_url, submission_pdf):
     return ranked_reviewers
 
 # Example usage:
-# match_reviewers("https://conf.researchr.org/track/ase-2025/ase-2025-papers", "example_submission.pdf")
+# match_reviewers("https://conf.researchr.org/track/ase-2025/ase-2025-papers", "./example_submission.pdf")
