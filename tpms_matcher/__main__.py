@@ -89,6 +89,18 @@ def main():
                         help="Start year for paper search (default: 2000)")
     parser.add_argument('--match-reviewers', nargs=2, metavar=('CFP_URL', 'PDF_PATH'),
                         help="Match potential reviewers for a paper submission. Requires CFP URL and PDF path.")
+    parser.add_argument('--sources', type=str, default='dblp,openalex,semanticscholar,website',
+                        help="Comma-separated publication sources: dblp,openalex,semanticscholar,website")
+    parser.add_argument('--text-source', type=str, choices=['auto', 'pdf', 'abstract', 'title'],
+                        default='auto', help="Text source for similarity: auto, pdf, abstract, or title")
+    parser.add_argument('--output', type=str, choices=['table', 'json', 'markdown'],
+                        default='table', help="Output format for reviewer matches")
+    parser.add_argument('--top-n', type=int, default=8,
+                        help="Number of reviewers to display (default: 8)")
+    parser.add_argument('--top-papers', type=int, default=3,
+                        help="Number of similar papers per reviewer (default: 3)")
+    parser.add_argument('--min-pdf', type=int, default=0,
+                        help="Minimum number of PDFs required to include a reviewer (default: 0)")
     args = parser.parse_args()
 
     if args.build_db:
@@ -98,7 +110,17 @@ def main():
         cfp_url, pdf_path = args.match_reviewers
         print(f"Matching reviewers for submission: {pdf_path}")
         print(f"Using CFP URL: {cfp_url}")
-        ranked_reviewers = match_reviewers(cfp_url, pdf_path)
+        sources = [s.strip() for s in args.sources.split(',') if s.strip()]
+        ranked_reviewers = match_reviewers(
+            cfp_url,
+            pdf_path,
+            sources=sources,
+            text_source=args.text_source,
+            output_format=args.output,
+            top_n=args.top_n,
+            top_papers=args.top_papers,
+            min_pdf=args.min_pdf,
+        )
         print(f"\nFound {len(ranked_reviewers)} potential reviewers.")
     else:
         assert DB_PATH.exists(), f"need to build a paper database first to perform wanted queries"

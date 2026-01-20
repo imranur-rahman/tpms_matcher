@@ -4,3 +4,4 @@ __pycache__
 top4grep/data/
 build/
 venv_top4grep/
+dblp_data/
