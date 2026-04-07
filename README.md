@@ -1,5 +1,5 @@
 # TPMS Matcher
-Find similar papers to a submission by comparing it to PC members' published papers.
+Find similar papers to a submission by comparing it to PC members' published papers. This repo is built on top of to4grep repo.
 
 ## Installation
 ```bash
@@ -9,7 +9,7 @@ pip3 install -e .
 ```
 
 ## Usage
-### Database Initialization
+### Database Initialization (Similar to top4grep)
 Build the paper database with optional conference type selection or update the database of papers stored in `papers.db`:
 
 ```bash
@@ -27,7 +27,7 @@ Supported conferences:
 - Security: NDSS, IEEE S&P, USENIX, CCS
 - Software Engineering: ICSE, FSE, ASE, ISSTA
 
-### Query
+### Query (Similar to top4grep)
 ```bash
 tpms-matcher -k <keywords> [--start-year YEAR]
 ```
@@ -69,9 +69,6 @@ tpms-matcher --match-reviewers <CFP_URL> <PDF_PATH> --top-n 8 --top-papers 3
 # Filter reviewers by minimum PDF availability
 tpms-matcher --match-reviewers <CFP_URL> <PDF_PATH> --min-pdf 5
 ```
-
-## Screenshot
-![screenshot](https://raw.githubusercontent.com/imranur-rahman/tpms_matcher/master/img/screenshot.png)
 
 ## TODO
 - [ ] grep in abstract
