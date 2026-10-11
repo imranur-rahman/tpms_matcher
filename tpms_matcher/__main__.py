@@ -7,8 +7,10 @@ from nltk.stem import PorterStemmer
 from .db import Base, Paper
 from .build_db import build_db, DB_PATH, CONFERENCE_CATEGORIES
 from .utils import new_logger
-from .tpms_matcher import match_reviewers
+from .tpms_matcher import match_reviewers, DECAY_HALF_LIFE, DEFAULT_TOP_K, DEFAULT_ALPHA, DEFAULT_COI_YEARS, SPECTER_MODEL, DEFAULT_PROFILE_TOP
+from .dblp_local import build_index, DEFAULT_DUMP_PATH
 import argparse
+from pathlib import Path
 
 
 
@@ -89,6 +91,8 @@ def main():
                         help="Start year for paper search (default: 2000)")
     parser.add_argument('--match-reviewers', nargs=2, metavar=('CFP_URL', 'PDF_PATH'),
                         help="Match potential reviewers for a paper submission. Requires CFP URL and PDF path.")
+    parser.add_argument('--hotcrp-url', type=str, default=None,
+                        help="HotCRP site to read the PC list from when the CFP page has no PC members")
     parser.add_argument('--sources', type=str, default='dblp,openalex,semanticscholar,website',
                         help="Comma-separated publication sources: dblp,openalex,semanticscholar,website")
     parser.add_argument('--text-source', type=str, choices=['auto', 'pdf', 'abstract', 'title'],
@@ -101,9 +105,43 @@ def main():
                         help="Number of similar papers per reviewer (default: 3)")
     parser.add_argument('--min-pdf', type=int, default=0,
                         help="Minimum number of PDFs required to include a reviewer (default: 0)")
+    parser.add_argument('--scorer', type=str, choices=['tfidf', 'lsa', 'embedding'], default='tfidf',
+                        help="Similarity model (default: tfidf). embedding needs sentence-transformers")
+    parser.add_argument('--embedding-model', type=str, default=SPECTER_MODEL,
+                        help=f"sentence-transformers model for --scorer embedding (default: {SPECTER_MODEL})")
+    parser.add_argument('--top-k', type=int, default=DEFAULT_TOP_K,
+                        help=f"Number of closest papers in the top-k part of the score (default: {DEFAULT_TOP_K})")
+    parser.add_argument('--alpha', type=float, default=DEFAULT_ALPHA,
+                        help=f"Weight of the top-k part; 1 - alpha goes to the whole-profile part (default: {DEFAULT_ALPHA})")
+    parser.add_argument('--half-life', type=float, default=DECAY_HALF_LIFE,
+                        help=f"Years after which a paper counts half; 0 turns the decay off (default: {DECAY_HALF_LIFE})")
+    parser.add_argument('--authors', type=str, default='',
+                        help="Semicolon-separated submission authors, for the conflict-of-interest check")
+    parser.add_argument('--author-affiliations', type=str, default='',
+                        help="Semicolon-separated submission author affiliations, for the conflict-of-interest check")
+    parser.add_argument('--coi-years', type=int, default=DEFAULT_COI_YEARS,
+                        help=f"Co-authorship in this many recent years is a conflict (default: {DEFAULT_COI_YEARS})")
+    parser.add_argument('--coi', type=str, choices=['flag', 'exclude'], default='flag',
+                        help="Show conflicts next to the reviewer (flag) or remove the reviewer (exclude)")
+    parser.add_argument('--dblp-index', type=str, default=None,
+                        help="SQLite index of the DBLP dump (default: dblp_data/dblp_index.sqlite when it exists)")
+    parser.add_argument('--build-dblp-index', nargs='?', const=str(DEFAULT_DUMP_PATH), metavar='DUMP_PATH',
+                        help=f"Build the DBLP index from the dump (default: {DEFAULT_DUMP_PATH}); dblp.dtd must be next to it")
+    parser.add_argument('--profiles', type=str, choices=['lazy', 'all', 'none'], default='lazy',
+                        help="researchr profiles to fetch: lazy (only ambiguous members and the top reviewers), "
+                             "all, or none (default: lazy)")
+    parser.add_argument('--profile-top', type=int, default=DEFAULT_PROFILE_TOP,
+                        help=f"With --profiles lazy, fetch the profiles of this many top reviewers (default: {DEFAULT_PROFILE_TOP})")
+    parser.add_argument('--max-members', type=int, default=None,
+                        help="Use only the first N PC members (for quick tests)")
     args = parser.parse_args()
 
-    if args.build_db:
+    def split_list(value):
+        return [item.strip() for item in value.split(';') if item.strip()]
+
+    if args.build_dblp_index:
+        build_index(args.build_dblp_index, args.dblp_index or Path(args.build_dblp_index).parent / "dblp_index.sqlite")
+    elif args.build_db:
         print(f"Building db for {args.conference_type} conferences...")
         build_db(args.abstract, args.conference_type)
     elif args.match_reviewers:
@@ -120,6 +158,20 @@ def main():
             top_n=args.top_n,
             top_papers=args.top_papers,
             min_pdf=args.min_pdf,
+            hotcrp_url=args.hotcrp_url,
+            scorer=args.scorer,
+            top_k=args.top_k,
+            alpha=args.alpha,
+            half_life=args.half_life,
+            embedding_model=args.embedding_model,
+            dblp_index_path=args.dblp_index,
+            submission_authors=split_list(args.authors),
+            submission_affiliations=split_list(args.author_affiliations),
+            coi_years=args.coi_years,
+            coi_mode=args.coi,
+            max_members=args.max_members,
+            profile_mode=args.profiles,
+            profile_top=args.profile_top,
         )
         print(f"\nFound {len(ranked_reviewers)} potential reviewers.")
     else:
